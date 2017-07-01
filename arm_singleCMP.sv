@@ -183,26 +183,26 @@ module controller(input  logic         clk, reset,
                   output logic         PCSrc);
 		  
  
- logic [1:0] FlagW;
-  logic       PCS, RegW, MemW;
+  logic [1:0] FlagW;
+  logic       PCS, RegW, MemW, NoWrite;
   
   decoder dec(Instr[27:26], Instr[25:20], Instr[15:12],
               FlagW, PCS, RegW, MemW,
-              MemtoReg, ALUSrc, ImmSrc, RegSrc, ALUControl);
+              MemtoReg, ALUSrc, ImmSrc, RegSrc, ALUControl, NoWrite);
   condlogic cl(clk, reset, Instr[31:28], ALUFlags,
                FlagW, PCS, RegW, MemW,
-               PCSrc, RegWrite, MemWrite);
+               PCSrc, RegWrite, MemWrite, NoWrite);
 endmodule
 
 module decoder(input  logic [1:0] Op,
                input  logic [5:0] Funct,
                input  logic [3:0] Rd,
                output logic [1:0] FlagW,
-               output logic       PCS, RegW, MemW, NoWrite,
+               output logic       PCS, RegW, MemW,
                output logic       MemtoReg, ALUSrc,
-               output logic [1:0] ImmSrc, RegSrc, ALUControl);
-	       //create NoWrite to prevent writing Rd during CMP.
-  logic [9:0] controls;
+               output logic [1:0] ImmSrc, RegSrc, ALUControl,  
+  	       output logic       NoWrite); //create NoWrite to prevent writing Rd during CMP.
+logic [9:0] controls;
   logic       Branch, ALUOp;
 
   // Main Decoder
@@ -231,20 +231,38 @@ module decoder(input  logic [1:0] Op,
     if (ALUOp) begin                 // which DP Instr?
       case(Funct[4:1]) 
 
-	    4'b0100: ALUControl = 2'b00;			//ADD
-	
-  	    4'b0010: ALUControl = 2'b01;			// SUB
-	    4'b0000: ALUControl = 2'b10;			// AND 
-	    4'b1100: ALUControl = 2'b11; 			// ORR
-		    
+	    4'b0100: 			//ADD
+	begin
+		     ALUControl = 2'b00;
+		     NoWrite =1'b0;
+	end
+  	    4'b0010: 			// SUB
+	begin	  
+		     ALUControl = 2'b01;
+   		     NoWrite = 1'b0;
+	end 
+ 	    4'b0000:			// AND 
+	begin
+	              ALUControl = 2'b10;
+		      NoWrite = 1'b0;
+	end   
+ 	    4'b1100:			// ORR
+	begin
+		       ALUControl = 2'b11;
+		       NoWrite = 1'b0;
+	end			
 	    4'b1010:
 	begin 
 		     ALUControl = 2'b01;			// CMP
-	    	     NoWrite=2'b1;
+	    	     NoWrite=1'b1;
 	end
 	
-	default: ALUControl = 2'bx;  // unimplemented
-      endcase
+	default: 
+	begin
+	             ALUControl = 2'bx;  // unimplemented
+       		     NoWrite=1'b0;
+	end
+  endcase
 
 	
       // update flags if S bit is set 
@@ -266,9 +284,9 @@ module condlogic(input  logic       clk, reset,
                  input  logic [3:0] Cond,
                  input  logic [3:0] ALUFlags,
                  input  logic [1:0] FlagW,
-                 input  logic       PCS, RegW, MemW, NoWrite, //acrescentado Nowrite como entrada
-                 output logic       PCSrc, RegWrite, MemWrite);
-                 
+                 input  logic       PCS, RegW, MemW,
+                 output logic       PCSrc, RegWrite, MemWrite,
+                 input logic	    NoWrite); //acrescentado Nowrite como entrada
   logic [1:0] FlagWrite;
   logic [3:0] Flags;
   logic       CondEx;
@@ -281,7 +299,7 @@ module condlogic(input  logic       clk, reset,
   // write controls are conditional
   condcheck cc(Cond, Flags, CondEx);
   assign FlagWrite = FlagW & {2{CondEx}};
-  assign RegWrite  = ~NoWrite & RegW  & CondEx;//acrescentado a porta AND o NowWrite Negado
+  assign RegWrite  = ~NoWrite & RegW  & CondEx;//acrescentado a porta AND o NoWrite Negado
   assign MemWrite  = MemW  & CondEx;
   assign PCSrc     = PCS   & CondEx;
 endmodule    
