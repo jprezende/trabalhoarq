@@ -1,6 +1,5 @@
-	.text
-start:	
-
+.text
+start:
 		MOV		R0, #2
 		MOV		R12, #0
 		MOV		R3, #0x00010000
