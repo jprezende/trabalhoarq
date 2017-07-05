@@ -1,0 +1,42 @@
+Disassembly of section .text:
+
+00008000 <MAIN>:
+MAIN:				
+		AND		R0,R0,#0 	
+    8000:	e2000000 	and	r0, r0, #0
+		ADD		R4,R0,#2 	
+    8004:	e2804002 	add	r4, r0, #2
+		ADD		R5,R0,#0
+    8008:	e2805000 	add	r5, r0, #0
+		ADD		R6,R0,#100 	
+    800c:	e2806064 	add	r6, r0, #100	; 0x64
+		AND		R8,R8,#0	
+    8010:	e2088000 	and	r8, r8, #0
+		AND		R7,R7,#0
+    8014:	e2077000 	and	r7, r7, #0
+		STR		R4,[R6,#0]	
+    8018:	e5864000 	str	r4, [r6]
+
+0000801c <LOOP>:
+LOOP:
+		CMP		R8,#9
+    801c:	e3580009 	cmp	r8, #9
+		BGE		FIM
+    8020:	aa000007 	bge	8044 <FIM>
+		TST		R4,#2147483648		
+    8024:	e3140102 	tst	r4, #-2147483648	; 0x80000000
+		ADD		R8,R8,#1	
+    8028:	e2888001 	add	r8, r8, #1
+		ADD		R7,R4,R4	
+    802c:	e0847004 	add	r7, r4, r4
+		ADD		R6,R6,#4	
+    8030:	e2866004 	add	r6, r6, #4
+		ADD		R4,R7,#0			
+    8034:	e2874000 	add	r4, r7, #0
+		STR		R4,[R6,#0]	
+    8038:	e5864000 	str	r4, [r6]
+		B		LOOP
+    803c:	eafffff6 	b	801c <LOOP>
+		LDR		R1,[R0,#136] 	
+    8040:	e5901088 	ldr	r1, [r0, #136]	; 0x88
+
