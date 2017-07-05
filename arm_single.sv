@@ -17,8 +17,8 @@
 //   Instr[27:26] = op = 00
 //   Instr[25:20] = funct
 //                  [25]:    1 for immediate, 0 for register
-//                  [24:21]: 0100 (ADD) / 0010 (SUB) /
-//                           0000 (AND) / 1100 (ORR)
+//                  [24:21]: 0100 (ADD) / 0010 (SUB) / 0001 (TST)**
+//                           0000 (AND) / 1100 (ORR) / 1010 (CMP)**
 //                  [20]:    S (1 = update CPSR status Flags)
 //   Instr[19:16] = rn
 //   Instr[15:12] = rd
@@ -100,13 +100,10 @@ module testbench();
   always @(negedge clk)
     begin
       if(MemWrite) begin
-        if(DataAdr === 100 & WriteData === 7) begin
+        if(DataAdr === 136 & WriteData === 1024) begin
           $display("Simulation succeeded!!!");
           $stop;
-        end else if (DataAdr !== 96) begin
-          $display("Simulation failed");
-          $stop;
-        end
+        end 
       end
     end
 endmodule
@@ -186,18 +183,18 @@ module controller(input  logic         clk, reset,
   logic       PCS, RegW, MemW;
   
   decoder dec(Instr[27:26], Instr[25:20], Instr[15:12],
-              FlagW, PCS, RegW, MemW,
-              MemtoReg, ALUSrc, ImmSrc, RegSrc, ALUControl);
+              FlagW, PCS, RegW, MemW, NoWrite, 
+              MemtoReg, ALUSrc, ImmSrc, RegSrc, ALUControl);// Incluido NoWrite
   condlogic cl(clk, reset, Instr[31:28], ALUFlags,
-               FlagW, PCS, RegW, MemW,
-               PCSrc, RegWrite, MemWrite);
+               FlagW, PCS, RegW, MemW, NoWrite,
+               PCSrc, RegWrite, MemWrite);// Incluido NoWrite
 endmodule
 
 module decoder(input  logic [1:0] Op,
                input  logic [5:0] Funct,
                input  logic [3:0] Rd,
                output logic [1:0] FlagW,
-               output logic       PCS, RegW, MemW,
+               output logic       PCS, RegW, MemW, NoWrite, // Incluído NoWrite
                output logic       MemtoReg, ALUSrc,
                output logic [1:0] ImmSrc, RegSrc, ALUControl);
 
@@ -228,11 +225,22 @@ module decoder(input  logic [1:0] Op,
   // ALU Decoder             
   always_comb
     if (ALUOp) begin                 // which DP Instr?
+      case(Funct[4:1]) // condições de saída de nowrite
+  	    4'b0100: NoWrite = 0; // ADD
+  	    4'b0010: NoWrite = 0; // SUB
+            4'b0000: NoWrite = 0; // AND
+  	    4'b1100: NoWrite = 0; // ORR
+	    4'b1010: NoWrite = 1; // CMP 
+	    4'b1000: NoWrite = 1; // TST 
+  	    default: NoWrite = 0;  // unimplemented
+      endcase
       case(Funct[4:1]) 
   	    4'b0100: ALUControl = 2'b00; // ADD
   	    4'b0010: ALUControl = 2'b01; // SUB
-          4'b0000: ALUControl = 2'b10; // AND
+            4'b0000: ALUControl = 2'b10; // AND
   	    4'b1100: ALUControl = 2'b11; // ORR
+	    4'b1010: ALUControl = 2'b01; // CMP - Condição para executar CMP
+	    4'b1000: ALUControl = 2'b10; // TST - Condição para executar TST
   	    default: ALUControl = 2'bx;  // unimplemented
       endcase
       // update flags if S bit is set 
@@ -254,7 +262,7 @@ module condlogic(input  logic       clk, reset,
                  input  logic [3:0] Cond,
                  input  logic [3:0] ALUFlags,
                  input  logic [1:0] FlagW,
-                 input  logic       PCS, RegW, MemW,
+                 input  logic       PCS, RegW, MemW, NoWrite, //Incluida saída logica no write do bloco condlogic
                  output logic       PCSrc, RegWrite, MemWrite);
                  
   logic [1:0] FlagWrite;
@@ -269,7 +277,7 @@ module condlogic(input  logic       clk, reset,
   // write controls are conditional
   condcheck cc(Cond, Flags, CondEx);
   assign FlagWrite = FlagW & {2{CondEx}};
-  assign RegWrite  = RegW  & CondEx;
+  assign RegWrite  = RegW  & CondEx & ~NoWrite; //Acrescentado Nowrite a condição de regwrite
   assign MemWrite  = MemW  & CondEx;
   assign PCSrc     = PCS   & CondEx;
 endmodule    
